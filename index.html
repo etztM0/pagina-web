@@ -1,0 +1,247 @@
+
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Archivo de mi cómic</title>
+  <style>
+    :root {
+      font-family: system-ui, sans-serif;
+      color: #24211f;
+      background: #f7f3ed;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header {
+      padding: 28px 20px;
+      color: white;
+      background: #292522;
+      text-align: center;
+    }
+    header h1 { margin: 0 0 6px; }
+    header p { margin: 0; color: #ddd3c9; }
+    main { width: min(1000px, 92%); margin: 28px auto; }
+    .panel {
+      padding: 22px;
+      margin-bottom: 24px;
+      background: white;
+      border: 1px solid #e7dfd5;
+      border-radius: 14px;
+      box-shadow: 0 4px 16px #3322110b;
+    }
+    h2 { margin-top: 0; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+    button, .tab {
+      padding: 10px 15px;
+      border: 0;
+      border-radius: 8px;
+      font: inherit;
+      cursor: pointer;
+    }
+    .tab { color: #514941; background: #f1ece5; }
+    .tab.active, .primary { color: white; background: #a8422d; }
+    label { display: block; margin: 14px 0 6px; font-weight: 650; }
+    input, textarea, select {
+      width: 100%;
+      padding: 11px;
+      border: 1px solid #d8d0c6;
+      border-radius: 8px;
+      font: inherit;
+      background: white;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+    .card { overflow: hidden; border: 1px solid #e7dfd5; border-radius: 12px; background: white; }
+    .card img { display: block; width: 100%; height: 190px; object-fit: cover; background: #eee8df; }
+    .card-content { padding: 14px; }
+    .card h3 { margin: 0 0 8px; }
+    .card p { margin: 7px 0; white-space: pre-wrap; }
+    .tag { color: #8c3a2b; font-size: .82rem; font-weight: 700; text-transform: uppercase; }
+    .delete { margin-top: 10px; color: #8f2727; background: #fae9e7; }
+    .empty { color: #746c63; text-align: center; padding: 24px; }
+    .actions { display: flex; gap: 8px; align-items: center; margin-top: 18px; }
+    .secondary { color: #39332e; background: #eee9e2; }
+    @media (max-width: 560px) {
+      .panel { padding: 16px; }
+      .actions { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📚 Archivo de mi cómic</h1>
+    <p>Un lugar para guardar tus personajes y viñetas</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>Agregar una entrada</h2>
+      <div class="tabs">
+        <button class="tab active" type="button" data-type="personaje">Personaje</button>
+        <button class="tab" type="button" data-type="viñeta">Viñeta</button>
+      </div>
+
+      <form id="entryForm">
+        <label for="title">Nombre o título</label>
+        <input id="title" required maxlength="100" placeholder="Por ejemplo: Luna o Capítulo 1, viñeta 3">
+
+        <label for="description">Descripción / notas</label>
+        <textarea id="description" placeholder="Escribe aquí los detalles que quieras recordar..."></textarea>
+
+        <div id="extraFields">
+          <label for="role">Rol en la historia</label>
+          <input id="role" placeholder="Por ejemplo: protagonista">
+        </div>
+
+        <label for="image">Imagen (opcional)</label>
+        <input id="image" type="file" accept="image/*">
+
+        <div class="actions">
+          <button class="primary" type="submit">Guardar entrada</button>
+          <button class="secondary" type="button" id="exportBtn">Exportar datos</button>
+          <label class="secondary" style="margin:0; cursor:pointer">
+            Importar datos
+            <input id="importFile" type="file" accept="application/json" hidden>
+          </label>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Mi archivo</h2>
+      <div class="tabs">
+        <button class="tab active" type="button" data-filter="todos">Todo</button>
+        <button class="tab" type="button" data-filter="personaje">Personajes</button>
+        <button class="tab" type="button" data-filter="viñeta">Viñetas</button>
+      </div>
+      <div id="entries" class="grid"></div>
+    </section>
+  </main>
+
+  <script>
+    const STORAGE_KEY = "archivo-comic-entries";
+    let entries = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    let currentType = "personaje";
+    let currentFilter = "todos";
+
+    const form = document.querySelector("#entryForm");
+    const extraFields = document.querySelector("#extraFields");
+    const entriesContainer = document.querySelector("#entries");
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+      render();
+    }
+
+    document.querySelectorAll("[data-type]").forEach(button => {
+      button.addEventListener("click", () => {
+        currentType = button.dataset.type;
+        document.querySelectorAll("[data-type]").forEach(tab =>
+          tab.classList.toggle("active", tab === button)
+        );
+        extraFields.innerHTML = currentType === "personaje"
+          ? '<label for="role">Rol en la historia</label><input id="role" placeholder="Por ejemplo: protagonista">'
+          : '<label for="page">Capítulo o página</label><input id="page" placeholder="Por ejemplo: Capítulo 1, página 4">';
+      });
+    });
+
+    document.querySelectorAll("[data-filter]").forEach(button => {
+      button.addEventListener("click", () => {
+        currentFilter = button.dataset.filter;
+        document.querySelectorAll("[data-filter]").forEach(tab =>
+          tab.classList.toggle("active", tab === button)
+        );
+        render();
+      });
+    });
+
+    form.addEventListener("submit", event => {
+      event.preventDefault();
+      const file = document.querySelector("#image").files[0];
+      const addEntry = image => {
+        const detailInput = extraFields.querySelector("input");
+        entries.unshift({
+          id: Date.now(),
+          type: currentType,
+          title: document.querySelector("#title").value.trim(),
+          description: document.querySelector("#description").value.trim(),
+          detailLabel: currentType === "personaje" ? "Rol" : "Capítulo / página",
+          detail: detailInput.value.trim(),
+          image
+        });
+        save();
+        form.reset();
+      };
+
+      if (!file) return addEntry("");
+      const reader = new FileReader();
+      reader.onload = () => addEntry(reader.result);
+      reader.readAsDataURL(file);
+    });
+
+    entriesContainer.addEventListener("click", event => {
+      const id = Number(event.target.dataset.delete);
+      if (!id) return;
+      entries = entries.filter(entry => entry.id !== id);
+      save();
+    });
+
+    document.querySelector("#exportBtn").addEventListener("click", () => {
+      const file = new Blob([JSON.stringify(entries, null, 2)], { type: "application/json" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(file);
+      link.download = "mi-comic.json";
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+
+    document.querySelector("#importFile").addEventListener("change", async event => {
+      const file = event.target.files[0];
+      if (!file) return;
+      try {
+        const imported = JSON.parse(await file.text());
+        if (!Array.isArray(imported)) throw new Error();
+        entries = [...imported, ...entries];
+        save();
+        alert("Datos importados.");
+      } catch {
+        alert("No se pudo importar. El archivo no parece válido.");
+      }
+      event.target.value = "";
+    });
+
+    function render() {
+      const visible = currentFilter === "todos"
+        ? entries
+        : entries.filter(entry => entry.type === currentFilter);
+
+      if (!visible.length) {
+        entriesContainer.innerHTML = '<div class="empty">Todavía no hay entradas. ¡Agrega la primera!</div>';
+        return;
+      }
+
+      entriesContainer.innerHTML = visible.map(entry => `
+        <article class="card">
+          ${entry.image ? `<img src="${entry.image}" alt="">` : ""}
+          <div class="card-content">
+            <span class="tag">${entry.type}</span>
+            <h3>${escapeHtml(entry.title)}</h3>
+            ${entry.detail ? `<p><strong>${entry.detailLabel}:</strong> ${escapeHtml(entry.detail)}</p>` : ""}
+            ${entry.description ? `<p>${escapeHtml(entry.description)}</p>` : ""}
+            <button class="delete" type="button" data-delete="${entry.id}">Eliminar</button>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function escapeHtml(value = "") {
+      return value.replace(/[&<>"']/g, char => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[char]));
+    }
+
+    render();
+  </script>
+</body>
+</html>
